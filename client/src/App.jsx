@@ -1,104 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import HomePage from "./components/HomePage";
+import LoginPage from "./components/LoginPage";
+
+function normalizePath(pathname) {
+  return pathname === "/login" ? "/login" : "/";
+}
 
 export default function App() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [user, setUser] = useState(null);
+  const [path, setPath] = useState(() => normalizePath(window.location.pathname));
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setError("");
-    setEmailError("");
-    setPasswordError("");
-
-    let hasError = false;
-
-    if (!email.trim()) {
-      setEmailError("Email is required.");
-      hasError = true;
+  useEffect(() => {
+    function handlePopState() {
+      setPath(normalizePath(window.location.pathname));
     }
 
-    if (!password.trim()) {
-      setPasswordError("Password is required.");
-      hasError = true;
-    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
-    if (hasError) {
+  function navigate(nextPath) {
+    if (nextPath === path) {
       return;
     }
-
-    setLoading(true);
-    try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ email: email.trim(), password })
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload.error || "Login failed.");
-      }
-
-      setUser(payload.user);
-    } catch (err) {
-      setError(err.message || "Unable to log in.");
-    } finally {
-      setLoading(false);
-    }
+    window.history.pushState({}, "", nextPath);
+    setPath(nextPath);
   }
 
-  return (
-    <main className="page">
-      <section className="login-card">
-        <p className="badge">Secure Access</p>
-        <h1>Log In</h1>
-        <p className="helper">Use your account to continue.</p>
+  if (path === "/") {
+    return <HomePage onLoginClick={() => navigate("/login")} />;
+  }
 
-        {user ? (
-          <div className="success-box">
-            <h2>Welcome, {user.name}</h2>
-            <p>You are logged in as {user.email}.</p>
-          </div>
-        ) : (
-          <form className="login-form" onSubmit={handleSubmit} noValidate>
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="demo@local.dev"
-            />
-            {emailError && <p className="field-error">{emailError}</p>}
-
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter your password"
-            />
-            {passwordError && <p className="field-error">{passwordError}</p>}
-
-            {error && <p className="error">{error}</p>}
-
-            <button type="submit" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
-        )}
-      </section>
-    </main>
-  );
+  return <LoginPage onBackHome={() => navigate("/")} />;
 }
